@@ -12,9 +12,11 @@ namespace MatrixQR
 
     class Vector
     {
-        private int _size;
+        private const double tolerance = 1e-10;
 
-        private double[] _elements;
+        private readonly int _size;
+
+        private readonly double[] _elements;
 
         public Vector(int size)
         {
@@ -133,7 +135,7 @@ namespace MatrixQR
             return (1.0 / norm) * this;
         }
 
-        public static bool IsOrthogonal(Vector v1, Vector v2, double tolerance = 1e-10)
+        public static bool IsOrthogonal(Vector v1, Vector v2)
         {
             return Math.Abs(DotProduct(v1, v2)) < tolerance;
         }
@@ -143,10 +145,10 @@ namespace MatrixQR
     {
         private const double Tolerance = 1e-10;
 
-        private double[,] _elements;
+        private readonly double[,] _elements;
 
-        private int _rows;
-        private int _cols;
+        private readonly int _rows;
+        private readonly int _cols;
 
         public Matrix(int rows, int cols)
         {
@@ -190,37 +192,13 @@ namespace MatrixQR
         {
             get
             {
-                if (!IsSquare)
-                    throw new InvalidOperationException("Determinant is only defined for square matrices.");
-                return DeterminantRecursive(_elements);
+                return GetDeterminant();
             }
         }
-
-        private static double DeterminantRecursive(double[,] matrix)
+        
+        private double GetDeterminant()
         {
-            int n = matrix.GetLength(0);
-            if (n == 1)
-                return matrix[0, 0];
-            if (n == 2)
-                return matrix[0, 0] * matrix[1, 1] - matrix[0, 1] * matrix[1, 0];
-            double det = 0;
-            for (int p = 0; p < n; p++)
-            {
-                double[,] subMatrix = new double[n - 1, n - 1];
-                for (int i = 1; i < n; i++)
-                {
-                    int subCol = 0;
-                    for (int j = 0; j < n; j++)
-                    {
-                        if (j == p)
-                            continue;
-                        subMatrix[i - 1, subCol] = matrix[i, j];
-                        subCol++;
-                    }
-                }
-                det += matrix[0, p] * DeterminantRecursive(subMatrix) * (p % 2 == 0 ? 1 : -1);
-            }
-            return det;
+            throw new NotImplementedException();
         }
 
         public bool IsInvertible
@@ -386,40 +364,7 @@ namespace MatrixQR
 
         public Matrix Invert()
         {
-            if (!IsInvertible)
-                throw new InvalidOperationException("Matrix must be square and invertible to compute its inverse.");
-
-            double det = Determinant;
-            Matrix invert = new Matrix(_rows, _cols);
-            for (int i = 0; i < _rows; i++)
-            {
-                for (int j = 0; j < _cols; j++)
-                {
-                    invert[j, i] = Cofactor(i, j) / det;
-                }
-            }
-            return invert;
-        }
-
-        public double Cofactor(int row, int col)
-        {
-            double[,] subMatrix = new double[_rows - 1, _cols - 1];
-            int subRow = 0;
-            for (int i = 0; i < _rows; i++)
-            {
-                if (i == row)
-                    continue;
-                int subCol = 0;
-                for (int j = 0; j < _cols; j++)
-                {
-                    if (j == col)
-                        continue;
-                    subMatrix[subRow, subCol] = _elements[i, j];
-                    subCol++;
-                }
-                subRow++;
-            }
-            return DeterminantRecursive(subMatrix) * ((row + col) % 2 == 0 ? 1 : -1);
+            throw new NotImplementedException();
         }
 
         public Vector[] ToRowVectorArray()
@@ -444,40 +389,7 @@ namespace MatrixQR
 
         public static (Matrix Q, Matrix R) QRDecomposition(Matrix m)
         {
-            if (!m.IsInvertible)
-                throw new ArgumentException("Matrix must be square and invertible for QR Decomposition.");
-
-            int n = m.Rows;
-            Vector[] a = m.ToColumnVectorArray();
-            Vector[] u = new Vector[n];
-            for (int i = 0; i < n; i++)
-            {
-                u[i] = a[i];
-                for (int j = 0; j < i; j++)
-                {
-                    double projCoeff = Vector.DotProduct(a[i], u[j]) / Vector.DotProduct(u[j], u[j]);
-                    u[i] = u[i] - projCoeff * u[j];
-                }
-            }
-            Vector[] e = new Vector[n];
-            for (int i = 0; i < n; i++)
-            {
-                e[i] = u[i].Normalize();
-            }
-            Matrix Q = new Matrix(n, n);
-            for (int j = 0; j < n; j++)
-            {
-                Q.SetColumn(j, e[j]);
-            }
-            Matrix R = new Matrix(n, n);
-            for (int i = 0; i < n; i++)
-            {
-                for (int j = i; j < n; j++)
-                {
-                    R[i, j] = Vector.DotProduct(e[i], a[j]);
-                }
-            }
-            return (Q, R);
+            throw new NotImplementedException();
         }
     }
 }
