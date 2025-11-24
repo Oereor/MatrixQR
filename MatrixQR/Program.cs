@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text.Json.Serialization;
 
 namespace MatrixQR
 {
@@ -7,6 +8,59 @@ namespace MatrixQR
         static void Main(string[] args)
         {
             Console.WriteLine("Hello, World!");
+
+            // Run two tests: two 4x4 matrices (one invertible, one singular non-triangular)
+            Console.WriteLine("Running Gaussian elimination inverse tests (two 4x4 matrices)...");
+
+            double tol = 1e-8;
+
+            void RunTest(double[,] elems)
+            {
+                int n = elems.GetLength(0);
+                Matrix m = new Matrix(elems);
+
+                Console.WriteLine($"\nTest {n}x{n} matrix:");
+                Console.WriteLine("Matrix m:\n" + m.ToString());
+
+                try
+                {
+                    Matrix inv = m.Inverse();
+                    Matrix prod = m * inv;
+                    Matrix id = Matrix.Identity(n);
+
+                    bool passed = true;
+                    for (int i = 0; i < n; i++)
+                    {
+                        for (int j = 0; j < n; j++)
+                        {
+                            if (Math.Abs(prod[i, j] - id[i, j]) > tol)
+                            {
+                                passed = false;
+                                break;
+                            }
+                        }
+                        if (!passed) break;
+                    }
+
+                    Console.WriteLine("Inverse inv:\n" + inv.ToString());
+                    Console.WriteLine("Product m * inv:\n" + prod.ToString());
+                    Console.WriteLine($"Inverse test passed: {passed}");
+                }
+                catch (InvalidOperationException)
+                {
+                    Console.WriteLine("Matrix is singular and cannot be inverted.");
+                }
+            }
+
+            
+            double[,] test4 = new double[,]
+            {
+                { 1, 0, 1, 1 },
+                { 0, 1, 1, 1 },
+                { 1, 1, 0, 1 },
+                { 0, 1, 0, 1 }
+            };
+            RunTest(test4);
         }
     }
 
@@ -192,18 +246,32 @@ namespace MatrixQR
         {
             get
             {
+                if (!IsSquare)
+                {
+                    throw new InvalidOperationException("Determinant is only defined for square matrices.");
+                }
                 return GetDeterminant();
             }
         }
-        
+
         private double GetDeterminant()
         {
-            throw new NotImplementedException();
+            Matrix copy = new Matrix(_elements);
+            copy.GaussianElimination(out bool _, out int exchanges);
+            double det = 1.0;
+            for (int i = 0; i < _rows; i++)
+            {
+                det *= copy[i, i];
+            }
+            return det * (exchanges % 2 == 0 ? 1 : -1);
         }
 
         public bool IsInvertible
         {
-            get { return IsSquare && Math.Abs(Determinant) > Tolerance; }
+            get
+            {
+                return IsSquare && GetDeterminant() > Tolerance;
+            }
         }
 
         public Vector GetRow(int row)
@@ -362,11 +430,6 @@ namespace MatrixQR
             return transposed;
         }
 
-        public Matrix Invert()
-        {
-            throw new NotImplementedException();
-        }
-
         public Vector[] ToRowVectorArray()
         {
             Vector[] rows = new Vector[_rows];
@@ -389,7 +452,185 @@ namespace MatrixQR
 
         public static (Matrix Q, Matrix R) QRDecomposition(Matrix m)
         {
-            throw new NotImplementedException();
+            if (!m.IsInvertible)
+            {
+                throw new InvalidOperationException("Matrix must be invertible for QR decomposition.");
+            }
+
+            int rows = m.Rows;
+            int cols = m.Cols;
+            Matrix Q = new Matrix(rows, cols);
+            Matrix R = new Matrix(cols, cols);
+
+            for (int i = 0; i < cols; i++)
+            {
+                Vector a_i = m.GetColumn(i);
+                Vector u_i = m.GetColumn(i);
+                for (int j = 0; j < i; j++)
+                {
+                    Vector u_j = Q.GetColumn(j);
+                    u_i -= Vector.DotProduct(a_i, u_j) / Vector.DotProduct(u_j, u_j) * u_j;
+                }
+                Q.SetColumn(i, u_i.Normalize());
+                R[i, i] = u_i.Norm;
+            }
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = i + 1; j < cols; j++)
+                {
+                    R[i, j] = Vector.DotProduct(Q.GetColumn(i), m.GetColumn(j));
+                }
+            }
+
+            return (Q, R);
+        }
+
+        /// <summary>
+        /// Performs Gaussian elimination on the matrix.
+        /// </summary>
+        /// <returns>A bool value indicating whether the matrix has inverse. </returns>
+        private void GaussianElimination(out bool canInvert, out int exchanges)
+        {
+            bool hasInverse = true;
+            int swaps = 0;
+            for (int i = 0; i < _rows; i++)
+            {
+                for (int j = i; j < _rows; j++)
+                {
+                    if (Math.Abs(_elements[j, i]) > Math.Abs(_elements[i, i]))
+                    {
+                        ExchangeRows(i, j);
+                        ++swaps;
+                    }
+                }
+                if (Math.Abs(_elements[i, i]) < Tolerance)
+                {
+                    hasInverse = false;
+                    continue;
+                }
+                NormalizeRow(i, i);
+                for (int j = i + 1; j < _rows; j++)
+                {
+                    SubtractRows(j, i, _elements[j, i]);
+                }
+            }
+            canInvert = hasInverse;
+            exchanges = swaps;
+        }
+
+        private void BackSubstitution()
+        {
+            for (int i = _rows - 1; i >= 0; i--)
+            {
+                for (int j = i - 1; j >= 0; j--)
+                {
+                    SubtractRows(j, i, _elements[j, i]);
+                }
+            }
+        }
+
+        private void ExchangeRows(int row1, int row2)
+        {
+            for (int j = 0; j < _cols; j++)
+            {
+                double temp = _elements[row1, j];
+                _elements[row1, j] = _elements[row2, j];
+                _elements[row2, j] = temp;
+            }
+        }
+
+        private void SubtractRows(int targetRow, int sourceRow, double factor)
+        {
+            for (int j = 0; j < _cols; j++)
+            {
+                _elements[targetRow, j] -= factor * _elements[sourceRow, j];
+            }
+        }
+
+        public Matrix Inverse()
+        {
+            if (!IsSquare)
+            {
+                throw new InvalidOperationException("Only square matrices can be inverted.");
+            }
+
+            Matrix copy = new Matrix(_elements);
+
+            Matrix augmented = new Matrix(_rows, 2 * _cols);
+            for (int i = 0; i < _rows; i++)
+            {
+                for (int j = 0; j < _cols; j++)
+                {
+                    augmented[i, j] = copy[i, j];
+                }
+                augmented[i, i + _cols] = 1.0;
+            }
+
+            augmented.GaussianElimination(out bool canInvert, out int _);
+            if (!canInvert)
+            {
+                throw new InvalidOperationException("Matrix is singular and cannot be inverted.");
+            }
+            augmented.BackSubstitution();
+
+            Matrix res = new Matrix(_rows, _cols);
+            for (int i = 0; i < _rows; i++)
+            {
+                for (int j = 0; j < _cols; j++)
+                {
+                    res[i, j] = augmented[i, j + _cols];
+                }
+            }
+            return res;
+        }
+
+        private void NormalizeRow(int row, int pivotCol)
+        {
+            if (Math.Abs(_elements[row, pivotCol]) < Tolerance)
+            {
+                return;
+            }
+
+            double factor = _elements[row, pivotCol];
+            for (int i = 0; i < _cols; i++)
+            {
+                _elements[row, i] /= factor;
+            }
+        }
+
+        public override string ToString()
+        {
+            ClearFloatError();
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            for (int i = 0; i < _rows; i++)
+            {
+                sb.Append("[");
+                for (int j = 0; j < _cols; j++)
+                {
+                    sb.Append(_elements[i, j].ToString("G"));
+                    if (j < _cols - 1) sb.Append(", ");
+                }
+                sb.Append("]");
+                if (i < _rows - 1) sb.AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        private void ClearFloatError()
+        {
+            for (int i = 0; i < _rows; i++)
+            {
+                for (int j = 0; j < _cols; j++)
+                {
+                    double element = _elements[i, j];
+                    double round = Math.Round(element);
+                    if (Math.Abs(element - round) < Tolerance)
+                    {
+                        _elements[i, j] = round;
+                    }
+                }
+            }
         }
     }
 }
