@@ -14,7 +14,7 @@ namespace MatrixQR
 
             double tol = 1e-8;
 
-            void RunTest(double[,] elems)
+            void RunTestInverse(double[,] elems)
             {
                 int n = elems.GetLength(0);
                 Matrix m = new Matrix(elems);
@@ -52,15 +52,98 @@ namespace MatrixQR
                 }
             }
 
-            
-            double[,] test4 = new double[,]
+            void RunTestQR(double[,] elems)
             {
-                { 1, 0, 1, 1 },
-                { 0, 1, 1, 1 },
-                { 1, 1, 0, 1 },
-                { 0, 1, 0, 1 }
+                int n = elems.GetLength(0);
+                Matrix m = new Matrix(elems);
+
+                Console.WriteLine($"\nTest {n}x{n} matrix:");
+                Console.WriteLine("Matrix m:\n" + m.ToString());
+
+                try
+                {
+                    (Matrix Q, Matrix R) = Matrix.QRDecomposition(m);
+                    Matrix prod = Q * R;
+
+                    bool passed = true;
+                    for (int i = 0; i < n; i++)
+                    {
+                        for (int j = 0; j < n; j++)
+                        {
+                            if (Math.Abs(prod[i, j] - m[i, j]) > tol)
+                            {
+                                passed = false;
+                                break;
+                            }
+                        }
+                        if (!passed) break;
+                    }
+
+                    Console.WriteLine("Q matrix:\n" + Q.ToString());
+                    Console.WriteLine("R matrix:\n" + R.ToString());
+                    Console.WriteLine("Product Q * R:\n" + prod.ToString());
+                    TestOrthogonality(Q);
+                    Console.WriteLine($"Decomposition test passed: {passed}");
+                }
+                catch (InvalidOperationException)
+                {
+                    Console.WriteLine("Matrix cannot be QR decomposed.");
+                }
+            }
+
+            void TestOrthogonality(Matrix Q)
+            {
+                int n = Q.Cols;
+                bool orthogonal = true;
+                for (int i = 0; i < n; i++)
+                {
+                    for (int j = i + 1; j < n; j++)
+                    {
+                        Vector colI = Q.GetColumn(i);
+                        Vector colJ = Q.GetColumn(j);
+                        if (!Vector.IsOrthogonal(colI, colJ))
+                        {
+                            orthogonal = false;
+                            break;
+                        }
+                    }
+                    if (!orthogonal) break;
+                }
+                Console.WriteLine($"Q matrix columns are orthogonal: {orthogonal}");
+            }
+
+            
+            // QR decomposition tests: sizes 2, 3 and 4 with mostly-integer entries
+            double[,] m2 = new double[,]
+            {
+                { 1, 2 },
+                { 3, 4 }
             };
-            RunTest(test4);
+
+            double[,] m3 = new double[,]
+            {
+                { 1, 2, 3 },
+                { 0, 1, 4 },
+                { 5, 6, 0 }
+            };
+
+            double[,] m4 = new double[,]
+            {
+                { 0, 1, 0, 0 },
+                { 0, 0, 1, 0 },
+                { 0, 0, 0, 1 },
+                { 1, 0, 0, 0 }
+            };
+
+            // Run inverse tests
+            RunTestInverse(m2);
+            RunTestInverse(m3);
+            RunTestInverse(m4);
+
+            // Run QR tests
+            RunTestQR(m2);
+            RunTestQR(m3);
+            RunTestQR(m4);
         }
     }
 
@@ -452,15 +535,10 @@ namespace MatrixQR
 
         public static (Matrix Q, Matrix R) QRDecomposition(Matrix m)
         {
-            if (!m.IsInvertible)
-            {
-                throw new InvalidOperationException("Matrix must be invertible for QR decomposition.");
-            }
-
             int rows = m.Rows;
             int cols = m.Cols;
             Matrix Q = new Matrix(rows, cols);
-            Matrix R = new Matrix(cols, cols);
+            Matrix R = new Matrix(rows, rows);
 
             for (int i = 0; i < cols; i++)
             {
