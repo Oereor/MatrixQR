@@ -144,6 +144,66 @@ namespace MatrixQR
             RunTestQR(m2);
             RunTestQR(m3);
             RunTestQR(m4);
+
+            // LU decomposition tests (2x2, 3x3, 4x4) chosen so no row exchanges are required
+            void RunTestLU(double[,] elems)
+            {
+                int n = elems.GetLength(0);
+                Matrix m = new Matrix(elems);
+                Console.WriteLine($"\nLU Test {n}x{n} matrix:");
+                Console.WriteLine("Matrix m:\n" + m.ToString());
+                try
+                {
+                    (Matrix L, Matrix U) = Matrix.LUDecomposition(new Matrix(elems));
+                    Matrix prod = L * U;
+                    bool passed = true;
+                    for (int i = 0; i < n; i++)
+                    {
+                        for (int j = 0; j < n; j++)
+                        {
+                            if (Math.Abs(prod[i, j] - m[i, j]) > tol)
+                            {
+                                passed = false;
+                                break;
+                            }
+                        }
+                        if (!passed) break;
+                    }
+                    Console.WriteLine("L matrix:\n" + L.ToString());
+                    Console.WriteLine("U matrix:\n" + U.ToString());
+                    Console.WriteLine("Product L * U:\n" + prod.ToString());
+                    Console.WriteLine($"LU decomposition test passed: {passed}");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Console.WriteLine($"LU decomposition failed: {ex.Message}");
+                }
+            }
+
+            double[,] lu2 = new double[,]
+            {
+                { 2, 1 },
+                { 1, 1 }
+            };
+
+            double[,] lu3 = new double[,]
+            {
+                { 2, 1, 1 },
+                { 0, 3, 2 },
+                { 1, 0, 4 }
+            };
+
+            double[,] lu4 = new double[,]
+            {
+                { 2, 1, 0, 0 },
+                { 1, 3, 1, 0 },
+                { 0, 2, 4, 1 },
+                { 0, 0, 1, 5 }
+            };
+
+            RunTestLU(lu2);
+            RunTestLU(lu3);
+            RunTestLU(lu4);
         }
     }
 
