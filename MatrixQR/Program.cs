@@ -715,7 +715,7 @@ namespace MatrixQR
         {
             if (row1 >= size || row2 >= size || row1 < 0 || row2 < 0)
                 throw new ArgumentException("Row indices must be within matrix size.");
-            
+
             Matrix perm = Identity(size);
             perm.ExchangeRows(row1, row2);
             return perm;
@@ -739,11 +739,16 @@ namespace MatrixQR
             scale[row, row] = factor;
             return scale;
         }
-        
-        
-        private Matrix GaussianEliminationOnSquare()
+
+        /// <summary>
+        /// Performs Gaussian elimination on a square matrix and returns the transformation matrix.
+        /// </summary>
+        /// <returns>A matrix representing all elimination processes. </returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        private Matrix GaussianEliminationOnSquare(out bool hasRowExchanges)
         {
-            if(!IsSquare)
+            bool rowExchanged = false;
+            if (!IsSquare)
             {
                 throw new InvalidOperationException("Matrix must be square for this operation.");
             }
@@ -751,6 +756,10 @@ namespace MatrixQR
             Matrix res = Identity(_rows);
             for (int i = 0; i < _rows; i++)
             {
+                if (Math.Abs(_elements[i, i]) < Tolerance)
+                {
+                    rowExchanged = true;
+                }
                 for (int j = i; j < _rows; j++)
                 {
                     if (Math.Abs(_elements[j, i]) > Math.Abs(_elements[i, i]))
@@ -761,6 +770,7 @@ namespace MatrixQR
                 }
                 if (Math.Abs(_elements[i, i]) < Tolerance)
                 {
+                    rowExchanged = false;
                     continue;
                 }
                 res = ScaleSquare(_rows, i, 1.0 / _elements[i, i]) * res;
@@ -771,8 +781,47 @@ namespace MatrixQR
                     SubtractRows(j, i, _elements[j, i]);
                 }
             }
-
+            hasRowExchanges = rowExchanged;
             return res;
+        }
+
+        private Matrix BackSubstitutionOnSquare()
+        {
+            if (!IsSquare)
+            {
+                throw new InvalidOperationException("Matrix must be square for this operation.");
+            }
+
+            Matrix res = Identity(_rows);
+            for (int i = _rows - 1; i >= 0; i--)
+            {
+                for (int j = i - 1; j >= 0; j--)
+                {
+                    res = EliminationSquare(_rows, j, i, _elements[j, i]) * res;
+                    SubtractRows(j, i, _elements[j, i]);
+                }
+            }
+            return res;
+        }
+
+        public static (Matrix L, Matrix U) LUDecomposition(Matrix m)
+        {
+            if (!m.IsSquare)
+            {
+                throw new InvalidOperationException("Matrix must be square for LU decomposition.");
+            }
+
+            Matrix copy = new Matrix(m._elements);
+            Matrix L = copy.GaussianEliminationOnSquare(out bool hasRowExchanges);
+            if (!hasRowExchanges)
+            {
+                Matrix U = copy.BackSubstitutionOnSquare();
+                return (L.Inverse(), U.Inverse());
+            }
+            else
+            {
+                throw new InvalidOperationException("LU decomposition failed due to row exchanges.");
+            }
         }
     }
 }
