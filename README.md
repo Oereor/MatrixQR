@@ -2,7 +2,7 @@
 A C#-implementation of simple vector and matrix operations. Currently support: 
 
 - Vector addition, scalar multiplication, dot product, norm; 
-- Matrix addition, scalar multiplication, matrix multiplication;
+- Matrix addition, scalar multiplication, matrix multiplication, transpose;
 - Determinant;
 - Inverse (Gaussian-Jordan elimination)
 - QR decomposition (Gram-Schmidt)
