@@ -290,6 +290,11 @@ namespace MatrixQR
             return scalar * v;
         }
 
+        public static double operator *(Vector v1, Vector v2)
+        {
+            return DotProduct(v1, v2);
+        }
+
         public static double DotProduct(Vector v1, Vector v2)
         {
             if (v1.Size != v2.Size)
