@@ -112,7 +112,7 @@ namespace MatrixQR
                 Console.WriteLine($"Q matrix columns are orthogonal: {orthogonal}");
             }
 
-            
+
             // QR decomposition tests: sizes 2, 3 and 4 with mostly-integer entries
             double[,] m2 = new double[,]
             {
@@ -709,6 +709,70 @@ namespace MatrixQR
                     }
                 }
             }
+        }
+
+        private static Matrix PermutationSquare(int size, int row1, int row2)
+        {
+            if (row1 >= size || row2 >= size || row1 < 0 || row2 < 0)
+                throw new ArgumentException("Row indices must be within matrix size.");
+            
+            Matrix perm = Identity(size);
+            perm.ExchangeRows(row1, row2);
+            return perm;
+        }
+
+        private static Matrix EliminationSquare(int size, int targetRow, int sourceRow, double factor)
+        {
+            if (targetRow >= size || sourceRow >= size || targetRow < 0 || sourceRow < 0)
+                throw new ArgumentException("Row indices must be within matrix size.");
+
+            Matrix elim = Identity(size);
+            elim[targetRow, sourceRow] = -factor;
+            return elim;
+        }
+
+        private static Matrix ScaleSquare(int size, int row, double factor)
+        {
+            if (row >= size || row < 0)
+                throw new ArgumentException("Row index must be within matrix size.");
+            Matrix scale = Identity(size);
+            scale[row, row] = factor;
+            return scale;
+        }
+        
+        
+        private Matrix GaussianEliminationOnSquare()
+        {
+            if(!IsSquare)
+            {
+                throw new InvalidOperationException("Matrix must be square for this operation.");
+            }
+
+            Matrix res = Identity(_rows);
+            for (int i = 0; i < _rows; i++)
+            {
+                for (int j = i; j < _rows; j++)
+                {
+                    if (Math.Abs(_elements[j, i]) > Math.Abs(_elements[i, i]))
+                    {
+                        ExchangeRows(i, j);
+                        res = PermutationSquare(_rows, i, j) * res;
+                    }
+                }
+                if (Math.Abs(_elements[i, i]) < Tolerance)
+                {
+                    continue;
+                }
+                res = ScaleSquare(_rows, i, 1.0 / _elements[i, i]) * res;
+                NormalizeRow(i, i);
+                for (int j = i + 1; j < _rows; j++)
+                {
+                    res = EliminationSquare(_rows, j, i, _elements[j, i]) * res;
+                    SubtractRows(j, i, _elements[j, i]);
+                }
+            }
+
+            return res;
         }
     }
 }
