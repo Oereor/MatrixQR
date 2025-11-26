@@ -180,16 +180,33 @@ namespace MatrixQR
                 }
             }
 
+            void RunTestDeterminant(double[,] elems)
+            {
+                int n = elems.GetLength(0);
+                Matrix m = new Matrix(elems);
+                Console.WriteLine($"\nDeterminant Test {n}x{n} matrix:");
+                Console.WriteLine("Matrix m:\n" + m.ToString());
+
+                try
+                {
+                    Console.WriteLine("Determinant of matrix m: " + m.Determinant);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Console.WriteLine($"Failed to compute determinant: {ex.Message}");
+                }
+            }
+
             double[,] lu2 = new double[,]
             {
-                { 2, 1 },
-                { 1, 1 }
+                { 1, 1 },
+                { 2, 1 }
             };
 
             double[,] lu3 = new double[,]
             {
                 { 2, 1, 1 },
-                { 0, 3, 2 },
+                { 1, 3, 4 },
                 { 1, 0, 4 }
             };
 
@@ -204,6 +221,10 @@ namespace MatrixQR
             RunTestLU(lu2);
             RunTestLU(lu3);
             RunTestLU(lu4);
+
+            RunTestDeterminant(lu2);
+            RunTestDeterminant(lu3);
+            RunTestDeterminant(lu4);
         }
     }
 
@@ -405,11 +426,11 @@ namespace MatrixQR
         private double GetDeterminant()
         {
             Matrix copy = new Matrix(_elements);
-            copy.GaussianElimination(out bool _, out int exchanges);
+            copy.GaussianElimination(out bool _, out int exchanges, out double[] diagonals);
             double det = 1.0;
             for (int i = 0; i < _rows; i++)
             {
-                det *= copy[i, i];
+                det *= diagonals[i];
             }
             return det * (exchanges % 2 == 0 ? 1 : -1);
         }
@@ -633,8 +654,9 @@ namespace MatrixQR
         /// Performs Gaussian elimination on the matrix.
         /// </summary>
         /// <returns>A bool value indicating whether the matrix has inverse. </returns>
-        private void GaussianElimination(out bool canInvert, out int exchanges)
+        private void GaussianElimination(out bool canInvert, out int exchanges, out double[] diagonals)
         {
+            double[] d = new double[_rows];
             bool hasInverse = true;
             int swaps = 0;
             for (int i = 0; i < _rows; i++)
@@ -652,6 +674,7 @@ namespace MatrixQR
                     hasInverse = false;
                     continue;
                 }
+                d[i] = _elements[i, i];
                 NormalizeRow(i, i);
                 for (int j = i + 1; j < _rows; j++)
                 {
@@ -660,6 +683,7 @@ namespace MatrixQR
             }
             canInvert = hasInverse;
             exchanges = swaps;
+            diagonals = d;
         }
 
         private void BackSubstitution()
@@ -710,7 +734,7 @@ namespace MatrixQR
                 augmented[i, i + _cols] = 1.0;
             }
 
-            augmented.GaussianElimination(out bool canInvert, out int _);
+            augmented.GaussianElimination(out bool canInvert, out int _, out double[] _);
             if (!canInvert)
             {
                 throw new InvalidOperationException("Matrix is singular and cannot be inverted.");
